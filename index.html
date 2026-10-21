@@ -1,0 +1,28 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#12182b"><meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="Symptom Log">
+<meta name="robots" content="noindex">
+<link rel="manifest" href="manifest.webmanifest"><link rel="apple-touch-icon" href="icons/apple-touch-icon.png"><link rel="icon" href="icons/icon-192.png">
+<title>Migraine & IBS Log</title>
+<style>
+:root{--bg:#12182b;--card:#1c2440;--tx:#e6ecff;--mu:#93a0c4;--ac:#7ee7c8;--sel:#3a64d8}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--tx);font:16px -apple-system,system-ui,sans-serif;padding:env(safe-area-inset-top) 12px 90px}
+h1{font-size:20px;margin:12px 0}h2{font-size:15px;color:var(--mu);margin:16px 0 6px;text-transform:uppercase;letter-spacing:.05em}
+.card{background:var(--card);border-radius:14px;padding:12px;margin:10px 0}
+.row{display:flex;flex-wrap:wrap;gap:8px}.lbl{font-size:14px;color:var(--mu);margin:10px 0 6px}
+button,.chip{border:1px solid #33406b;background:#232c4d;color:var(--tx);border-radius:22px;padding:10px 14px;font-size:15px;min-height:44px}
+.chip.on{background:var(--sel);border-color:var(--sel)}.big{width:100%;font-size:17px;font-weight:600}
+.quiet{background:#1f5f50;border-color:#2c8a73}.save{background:var(--ac);color:#0d2a22;border:0}
+.scale .chip{min-width:44px;padding:10px 0;flex:1 0 13%}
+input,textarea{width:100%;background:#0f1426;color:var(--tx);border:1px solid #33406b;border-radius:10px;padding:10px;font-size:16px}
+nav{position:fixed;bottom:0;left:0;right:0;display:flex;background:#0d1222;padding:8px 8px calc(8px + env(safe-area-inset-bottom))}
+nav button{flex:1;border-radius:10px;margin:0 3px}nav button.on{background:var(--sel)}
+.hist div{display:flex;justify-content:space-between;padding:10px 4px;border-bottom:1px solid #2a3355}
+.mu{color:var(--mu);font-size:14px}.toast{position:fixed;top:20px;left:50%;transform:translateX(-50%);background:var(--ac);color:#0d2a22;padding:10px 18px;border-radius:20px;display:none;z-index:9}
+table{width:100%;border-collapse:collapse}td,th{padding:6px;text-align:center;border-bottom:1px solid #2a3355}
+</style></head><body>
+<div class="toast" id="toast"></div>
+<section id="v-log"></section><section id="v-hist" hidden></section><section id="v-set" hidden></section>
+<nav><button data-v="log" class="on">Check-in</button><button data-v="hist">History</button><button data-v="set">Settings</button></nav>
+<script src="app.js"></script></body></html>
