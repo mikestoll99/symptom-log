@@ -1,4 +1,4 @@
-const COLS=['date','migraine','intensity','prostrating','start','start_time','duration','location','light','sound','nausea','vomiting','aura','duties','medication','trigger','could_not_do','ibs_pattern','abdominal_distress','bathroom_limited','ibs_note'];
+const COLS=['date','migraine','intensity','prostrating','start','start_time','duration','location','light','sound','nausea','vomiting','aura','duties','medication','trigger','could_not_do','ibs_pattern','abdominal_distress','bathroom_limited','ibs_note','bowel_movement','pain_with_bm'];
 const KEY='symlog.entries.v1';
 const $=s=>document.querySelector(s);
 const load=()=>JSON.parse(localStorage.getItem(KEY)||'{}');
@@ -62,6 +62,8 @@ function renderLog(){
  ${L('What I could not do (optional)',`<textarea id="cnd" rows="2">${esc(cur.could_not_do)}</textarea>`)}`:''}</div>
  <h2>IBS</h2><div class="card">${L('Pattern',chips('ibs_pattern',[['normal','Normal'],['constipation','Constipation'],['diarrhea','Diarrhea'],['mixed','Mixed']]))}
  ${L('Abdominal distress',chips('abdominal_distress',[['none','None'],['episodic','Episodic'],['most','Most of day']]))}
+ ${L('Bowel movement today?',yn('bowel_movement'))}
+ ${L('Abdominal pain related to a bowel movement?',yn('pain_with_bm'))}
  ${L('Bathroom access limited duties?',yn('bathroom_limited'))}
  ${L('IBS note (optional)',`<textarea id="ibn" rows="2">${esc(cur.ibs_note)}</textarea>`)}</div>
  <button class="big save" id="save">Save ${curDate}</button>`;
@@ -78,7 +80,7 @@ document.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)r
  if(b.dataset.f){readText();const f=b.dataset.f,v=b.dataset.v;
   if(b.dataset.m){const s=new Set((cur[f]||'').split(' ').filter(Boolean));s.has(v)?s.delete(v):s.add(v);cur[f]=[...s].join(' ')}
   else cur[f]=cur[f]===v?'':v;const y=scrollY;renderLog();scrollTo(0,y);return}
- if(b.id==='quiet'){cur={date:curDate,migraine:'no',ibs_pattern:'normal',abdominal_distress:'none',bathroom_limited:'no'};save();return}
+ if(b.id==='quiet'){cur={date:curDate,migraine:'no',ibs_pattern:'normal',abdominal_distress:'none',bathroom_limited:'no',bowel_movement:'',pain_with_bm:'no'};save();return}
  if(b.id==='save')return save();
  if(b.dataset.v&&b.parentNode.tagName==='NAV')return show(b.dataset.v);
  if(b.dataset.d){openDate(b.dataset.d);show('log')}
@@ -89,9 +91,9 @@ document.addEventListener('change',e=>{if(e.target.id==='dt'&&e.target.value)ope
 function show(v){document.querySelectorAll('section').forEach(s=>s.hidden=s.id!=='v-'+v);document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b.dataset.v===v));
  if(v==='hist')renderHist();if(v==='set')renderSet();if(v==='log')renderLog();}
 function renderHist(){const db=load(),ds=Object.keys(db).sort().reverse(),m={};
- ds.forEach(d=>{const e=db[d],k=d.slice(0,7);m[k]=m[k]||[0,0,0,0];const mg=e.migraine&&e.migraine!=='no';
-  if(mg)m[k][0]++;if(mg&&e.prostrating==='yes')m[k][1]++;if(mg&&e.duties==='no')m[k][2]++;if(e.ibs_pattern&&e.ibs_pattern!=='normal')m[k][3]++});
- $('#v-hist').innerHTML=`<h1>History</h1><div class="card"><table><tr><th>Month</th><th>Migraine days</th><th>Prostrating</th><th>Couldn't do duties</th><th>IBS days</th></tr>
+ ds.forEach(d=>{const e=db[d],k=d.slice(0,7);m[k]=m[k]||[0,0,0,0,0];const mg=e.migraine&&e.migraine!=='no';
+  if(mg)m[k][0]++;if(mg&&e.prostrating==='yes')m[k][1]++;if(mg&&e.duties==='no')m[k][2]++;if(e.ibs_pattern&&e.ibs_pattern!=='normal')m[k][3]++;if(e.pain_with_bm==='yes')m[k][4]++});
+ $('#v-hist').innerHTML=`<h1>History</h1><div class="card"><table><tr><th>Month</th><th>Migraine days</th><th>Prostrating</th><th>Couldn't do duties</th><th>IBS days</th><th>BM pain days</th></tr>
  ${Object.keys(m).sort().reverse().map(k=>`<tr><td>${k}</td>${m[k].map(x=>`<td>${x}</td>`).join('')}</tr>`).join('')}</table></div>
  <div class="card hist">${ds.length?ds.map(d=>{const e=db[d],mg=e.migraine&&e.migraine!=='no';
  return `<div><span>${d}<br><span class="mu">${mg?`Migraine ${e.intensity||'?'}/10${e.prostrating==='yes'?' · prostrating':''}${e.duties==='no'?' · could NOT perform duties':''}`:'No migraine'} · IBS ${e.ibs_pattern||'–'}</span></span><button data-d="${d}">Edit</button></div>`}).join(''):'<p class="mu">No entries yet. Import your CSV in Settings.</p>'}</div>`;}
