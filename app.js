@@ -11,12 +11,27 @@ let cur={}, curDate=today();
 // ---- CSV ----
 function toCSV(db){const q=v=>{v=v??'';return /[",\n\r]/.test(v)?'"'+String(v).replace(/"/g,'""')+'"':v};
  return COLS.join(',')+'\n'+Object.keys(db).sort().map(d=>COLS.map(c=>q(db[d][c])).join(',')).join('\n')+'\n';}
-function parseCSV(t){const rows=[];let r=[],f='',q=false;for(let i=0;i<t.length;i++){const c=t[i];
+function parseCSVRows(t){const rows=[];let r=[],f='',q=false;for(let i=0;i<t.length;i++){const c=t[i];
  if(q){if(c=='"'){if(t[i+1]=='"'){f+='"';i++}else q=false}else f+=c}
  else if(c=='"')q=true;else if(c==','){r.push(f);f=''}else if(c=='\n'||c=='\r'){if(c=='\r'&&t[i+1]=='\n')i++;r.push(f);rows.push(r);r=[];f=''}else f+=c}
  if(f||r.length){r.push(f);rows.push(r)}
- const h=rows.shift().map(x=>x.trim().replace(/^\ufeff/,''));const out={};
- rows.filter(x=>x.length>1).forEach(x=>{const o={};h.forEach((k,i)=>o[k]=x[i]??'');if(o.date)out[o.date]=o});return out;}
+ return rows.filter(x=>x.length>1)}
+
+// ---- Excel import ----
+const p2=n=>String(n).padStart(2,'0');
+function normDate(v){if(v===''||v==null)return '';if(typeof v==='number'){const d=new Date(Math.round((v-25569)*864e5));return d.getUTCFullYear()+'-'+p2(d.getUTCMonth()+1)+'-'+p2(d.getUTCDate())}
+ v=String(v).trim();let m=v.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);if(m)return m[1]+'-'+p2(m[2])+'-'+p2(m[3]);
+ m=v.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);if(m)return (m[3].length==2?'20'+m[3]:m[3])+'-'+p2(m[1])+'-'+p2(m[2]);return v}
+function normTime(v){if(v===''||v==null)return '';if(typeof v==='number'){const t=Math.round((v%1)*1440);return p2(Math.floor(t/60))+':'+p2(t%60)}
+ v=String(v).trim();const m=v.match(/^(\d{1,2}):(\d{2})(?::\d{2})?\s*([ap]m)?$/i);if(!m)return v;let h=+m[1];if(m[3]){h%=12;if(/p/i.test(m[3]))h+=12}return p2(h)+':'+m[2]}
+function rowsToDB(rows){const h=rows.shift().map(x=>String(x??'').trim().replace(/^\ufeff/,'').toLowerCase());const out={};
+ rows.forEach(r=>{const o={};COLS.forEach(c=>{const i=h.indexOf(c);let v=i<0?'':r[i];v=v==null?'':v;
+  o[c]=c==='date'?normDate(v):c==='start_time'?normTime(v):typeof v==='number'?String(+v.toFixed(4)):String(v)});if(o.date)out[o.date]=o});return out}
+function loadXLSX(){return window.XLSX?Promise.resolve():new Promise((ok,no)=>{const s=document.createElement('script');s.src='vendor/xlsx.full.min.js';s.onload=ok;s.onerror=()=>no(new Error('Excel reader not loaded'));document.head.appendChild(s)})}
+async function readImport(f){if(/\.(xlsx|xls|xlsm|ods)$/i.test(f.name)||/sheet|excel/i.test(f.type)){await loadXLSX();
+ const wb=XLSX.read(await f.arrayBuffer(),{type:'array'});const ws=wb.Sheets[wb.SheetNames[0]];
+ return rowsToDB(XLSX.utils.sheet_to_json(ws,{header:1,raw:true,defval:'',blankrows:false}))}
+ const t=await f.text();return rowsToDB(parseCSVRows(t))}
 
 // ---- UI helpers ----
 function chips(field,opts,multi){return `<div class="row">`+opts.map(([v,l])=>{const on=multi?(cur[field]||'').split(' ').includes(v):cur[field]===v;
@@ -70,7 +85,7 @@ document.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)r
  if(b.id==='exp')exportCSV();if(b.id==='notif')enableNotif();if(b.id==='ics')downloadICS();if(b.id==='wipe'&&confirm('Delete ALL entries on this phone?')){store({});toast('Cleared');show('set')}
 });
 document.addEventListener('change',e=>{if(e.target.id==='dt'&&e.target.value)openDate(e.target.value);
- if(e.target.id==='imp'&&e.target.files[0])e.target.files[0].text().then(t=>{const n=parseCSV(t);const db={...load(),...n};store(db);toast('Imported '+Object.keys(n).length+' days');show('hist')})});
+ if(e.target.id==='imp'&&e.target.files[0])readImport(e.target.files[0]).then(n=>{const db={...load(),...n};store(db);toast('Imported '+Object.keys(n).length+' days');show('hist')})});
 function show(v){document.querySelectorAll('section').forEach(s=>s.hidden=s.id!=='v-'+v);document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b.dataset.v===v));
  if(v==='hist')renderHist();if(v==='set')renderSet();if(v==='log')renderLog();}
 function renderHist(){const db=load(),ds=Object.keys(db).sort().reverse(),m={};
@@ -82,7 +97,7 @@ function renderHist(){const db=load(),ds=Object.keys(db).sort().reverse(),m={};
  return `<div><span>${d}<br><span class="mu">${mg?`Migraine ${e.intensity||'?'}/10${e.prostrating==='yes'?' · prostrating':''}${e.duties==='no'?' · could NOT perform duties':''}`:'No migraine'} · IBS ${e.ibs_pattern||'–'}</span></span><button data-d="${d}">Edit</button></div>`}).join(''):'<p class="mu">No entries yet. Import your CSV in Settings.</p>'}</div>`;}
 function renderSet(){$('#v-set').innerHTML=`<h1>Settings</h1>
  <div class="card"><b>Export</b><p class="mu">Downloads every entry as a CSV (same columns as your VA log).</p><button class="big" id="exp">Export CSV</button></div>
- <div class="card"><b>Import</b><p class="mu">Load a CSV (e.g. your Sept 19 – Oct 20 log). Days in the file replace the same days here.</p><input type="file" id="imp" accept=".csv,text/csv"></div>
+ <div class="card"><b>Import</b><p class="mu">Load a CSV or Excel file (e.g. your Sept 19 – Oct 20 log). Days in the file replace the same days here.</p><input type="file" id="imp" accept=".csv,.xlsx,.xls,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"></div>
  <div class="card"><b>9 PM reminder</b><p class="mu">Status: ${'Notification' in window?Notification.permission:'not supported here'}. Phone browsers can't reliably fire a timed alert while the app is closed, so also add the calendar reminder.</p>
  <button class="big" id="notif">Enable app notifications</button><div style="height:8px"></div><button class="big" id="ics">Add nightly 9 PM calendar reminder</button></div>
  <div class="card"><b>Data</b><p class="mu">${Object.keys(load()).length} days stored on this phone only. Nothing is sent anywhere. Export regularly as a backup.</p><button id="wipe">Delete all data</button></div>`;}
@@ -97,4 +112,4 @@ function schedule(){if(!('Notification' in window)||Notification.permission!=='g
  setTimeout(async()=>{if(!load()[today()])(await navigator.serviceWorker.ready).showNotification('Symptom Log',{body:'Time for your evening check-in.',icon:'icons/icon-192.png',tag:'nightly'});schedule()},t-n);}
 if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js');
 openDate(today());schedule();
-window.__t={toCSV,parseCSV,load,store};
+window.__t={toCSV,readImport,load,store};
